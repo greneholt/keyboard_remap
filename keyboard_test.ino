@@ -10,6 +10,7 @@
 #define CODE_H 0x0B
 #define CODE_N 0x11
 #define CODE_CAPS 0x39
+#define CODE_SEMICOLON 0x33
 
 class MouseRptParser : public HIDReportParser {
 public:
@@ -28,26 +29,26 @@ class KbdRptParser : public HIDReportParser {
 public:
   KbdRptParser() {
     semicolon_down = false;
-    semicolon_was_pressed = false;
-    semicolon_used = false;
+    semicolon_down_last = false;
+    capslock_down = false;
+    capslock_down_last = false;
     anything_pressed = false;
-    capslock_was_pressed = false;
-    old_mods = 0;
+    mods_last = 0;
   };
 
   virtual void Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf);
 
 protected:
-  void HandleModifiers(uint8_t modifiers);
+  uint8_t RemapModifiers(uint8_t modifiers);
   void SetKey(uint8_t index, uint8_t key);
 
 private:
   bool semicolon_down;
-  bool semicolon_was_pressed;
-  bool semicolon_used;
+  bool semicolon_down_last;
+  bool capslock_down;
+  bool capslock_down_last;
   bool anything_pressed;
-  bool capslock_was_pressed;
-  uint8_t old_mods;
+  uint8_t mods_last;
 };
 
 void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
@@ -66,66 +67,87 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
   // Keyboard.set_key6(buf[7]);
 
   semicolon_down = false;
-  uint8_t free_index = 0;
-  bool any_key_down = false;
+  capslock_down = false;
 
   uint8_t mods = buf[0];
 
+  mods = RemapModifiers(mods);
+
+  bool any_key_down = false;
+
   for (uint8_t i = 2; i < 8; i++) {
     uint8_t key = buf[i];
-    if (semicolon_was_pressed) {
+    if (semicolon_down_last) {
       switch(key) {
-        case CODE_J: key = KEY_LEFT; semicolon_used = true; break;
-        case CODE_K: key = KEY_DOWN; semicolon_used = true; break;
-        case CODE_L: key = KEY_RIGHT; semicolon_used = true; break;
-        case CODE_I: key = KEY_UP; semicolon_used = true; break;
-        case CODE_U: key = KEY_HOME; semicolon_used = true; break;
-        case CODE_O: key = KEY_END; semicolon_used = true; break;
-        case CODE_H: key = KEY_PAGE_UP; semicolon_used = true; break;
-        case CODE_N: key = KEY_PAGE_DOWN; semicolon_used = true; break;
+        case CODE_J: key = KEY_LEFT; break;
+        case CODE_K: key = KEY_DOWN; break;
+        case CODE_L: key = KEY_RIGHT; break;
+        case CODE_I: key = KEY_UP; break;
+        case CODE_U: key = KEY_HOME; break;
+        case CODE_O: key = KEY_END; break;
+        case CODE_H: key = KEY_PAGE_UP; break;
+        case CODE_N: key = KEY_PAGE_DOWN; break;
       }
     }
 
-    if (key == 0) {
-      free_index = i;
-    } else {
-      if (key == CODE_CAPS) {
-        mods |= MODIFIERKEY_LEFT_ALT;
-        capslock_was_pressed = true;
-      }
-
-      any_key_down = true;
-      Serial.printf("%x\n", key);
-    }
-
-    if (key == 0x33) {
-      free_index = i;
-      SetKey(i, 0); // don't send the semicolon
-
+    if (key == CODE_CAPS) {
+      key = 0; // don't send caps lock
+      mods |= MODIFIERKEY_LEFT_CTRL;
+      capslock_down = true;
+    } else if (key == CODE_SEMICOLON) {
+      key = 0; // don't send the semicolon
       semicolon_down = true;
-      semicolon_was_pressed = true;
-    } else {
-      SetKey(i, key);
+    } else if (key != 0) {
+      anything_pressed = true;
+      any_key_down = true;
+      // Serial.printf("%x\n", key);
     }
+
+    SetKey(i, key);
   }
 
-  if (any_key_down) {
-    anything_pressed = true;
-  }
-
-  if (!semicolon_down) {
-    if (semicolon_was_pressed && !semicolon_used && free_index != 0) {
-      // send and then immediately clear the semicolon
-      SetKey(free_index, KEY_SEMICOLON);
+  if (!mods && mods_last && !anything_pressed) {
+    if (mods_last & MODIFIERKEY_LEFT_SHIFT) {
+      Keyboard.set_key1(KEY_BACKSPACE);
       Keyboard.send_now();
-      SetKey(free_index, 0);
     }
 
-    semicolon_used = false;
-    semicolon_was_pressed = false;
+    if (mods_last & MODIFIERKEY_RIGHT_SHIFT) {
+      Keyboard.set_key1(KEY_DELETE);
+      Keyboard.send_now();
+    }
+
+    // clear the delete
+    Keyboard.set_key1(0);
   }
 
-  HandleModifiers(mods);
+  if (!semicolon_down && semicolon_down_last && !anything_pressed) {
+    // send and then immediately clear the semicolon
+    Keyboard.set_key1(KEY_SEMICOLON);
+    Keyboard.send_now();
+    Keyboard.set_key1(0);
+  }
+
+  if (!capslock_down && capslock_down_last && !anything_pressed) {
+    // send and then immediately clear the escape
+    Keyboard.set_key1(KEY_ESC);
+    Keyboard.send_now();
+    Keyboard.set_key1(0);
+  }
+
+  if (!any_key_down && !mods && !semicolon_down && !capslock_down) {
+    anything_pressed = false;
+  }
+
+  mods_last = mods;
+  semicolon_down_last = semicolon_down;
+  capslock_down_last = capslock_down;
+
+  if (anything_pressed) {
+    Keyboard.set_modifier(mods);
+  } else {
+    Keyboard.set_modifier(0);
+  }
 
   Keyboard.send_now();
 }
@@ -142,7 +164,7 @@ void KbdRptParser::SetKey(uint8_t index, uint8_t key)
   }
 }
 
-void KbdRptParser::HandleModifiers(uint8_t in_mods)
+uint8_t KbdRptParser::RemapModifiers(uint8_t in_mods)
 {
   uint8_t out_mods;
 
@@ -178,27 +200,7 @@ void KbdRptParser::HandleModifiers(uint8_t in_mods)
     out_mods |= MODIFIERKEY_RIGHT_GUI;
   }
 
-  Keyboard.set_modifier(out_mods);
-
-  if (!out_mods && old_mods) {
-    if (!anything_pressed) {
-      if (old_mods & MODIFIERKEY_LEFT_SHIFT) {
-        Keyboard.set_key1(KEY_BACKSPACE);
-      }
-
-      if (old_mods & MODIFIERKEY_RIGHT_SHIFT) {
-        Keyboard.set_key1(KEY_DELETE);
-      }
-
-      Keyboard.send_now();
-      Keyboard.set_key1(0);
-    }
-
-    // reset anything pressed
-    anything_pressed = false;
-  }
-
-  old_mods = out_mods;
+  return out_mods;
 }
 
 USB Usb;
