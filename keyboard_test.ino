@@ -11,6 +11,8 @@
 #define CODE_N 0x11
 #define CODE_CAPS 0x39
 #define CODE_SEMICOLON 0x33
+#define CODE_UP 0x52
+#define CODE_DOWN 0x51
 
 class MouseRptParser : public HIDReportParser {
 public:
@@ -21,8 +23,8 @@ void MouseRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
 {
   MOUSEINFO *pmi = (MOUSEINFO*)buf;
 
-  Mouse.move(pmi->dX, pmi->dY);
   Mouse.set_buttons(pmi->bmLeftButton, pmi->bmMiddleButton, pmi->bmRightButton);
+  Mouse.move(pmi->dX, pmi->dY);
 }
 
 class KbdRptParser : public HIDReportParser {
@@ -56,15 +58,6 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
   // On error - return
   if (buf[2] == 1)
     return;
-
-  // KBDINFO *pki = (KBDINFO*)buf;
-
-  // Keyboard.set_key1(buf[2]);
-  // Keyboard.set_key2(buf[3]);
-  // Keyboard.set_key3(buf[4]);
-  // Keyboard.set_key4(buf[5]);
-  // Keyboard.set_key5(buf[6]);
-  // Keyboard.set_key6(buf[7]);
 
   semicolon_down = false;
   capslock_down = false;
@@ -100,7 +93,9 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
     } else if (key != 0) {
       anything_pressed = true;
       any_key_down = true;
-      // Serial.printf("%x\n", key);
+#ifdef DEBUG
+      Serial.printf("%x\n", key);
+#endif
     }
 
     SetKey(i, key);
@@ -210,23 +205,25 @@ HIDBoot<HID_PROTOCOL_KEYBOARD | HID_PROTOCOL_MOUSE> HidComposite(&Usb);
 HIDBoot<HID_PROTOCOL_KEYBOARD> HidKeyboard(&Usb);
 HIDBoot<HID_PROTOCOL_MOUSE> HidMouse(&Usb);
 
-//uint32_t next_time;
-
 KbdRptParser KbdPrs;
 MouseRptParser MousePrs;
 
 void setup()
 {
+#ifdef DEBUG
   Serial.begin( 115200 );
   while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
   Serial.println("Start");
+#endif
 
+#ifdef DEBUG
   if (Usb.Init() == -1)
     Serial.println("OSC did not start.");
+#else
+  Usb.Init();
+#endif
 
-  delay( 200 );
-
-  //next_time = millis() + 5000;
+  delay(200);
 
   HidComposite.SetReportParser(0, (HIDReportParser*)&KbdPrs);
   HidComposite.SetReportParser(1,(HIDReportParser*)&MousePrs);
@@ -236,5 +233,5 @@ void setup()
 
 void loop()
 {
-    Usb.Task();
+  Usb.Task();
 }
