@@ -35,6 +35,7 @@ public:
     capslock_down = false;
     capslock_down_last = false;
     anything_pressed = false;
+    semicolon_used = false;
     mods_last = 0;
   };
 
@@ -50,6 +51,7 @@ private:
   bool capslock_down;
   bool capslock_down_last;
   bool anything_pressed;
+  bool semicolon_used;
   uint8_t mods_last;
 };
 
@@ -68,18 +70,20 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
 
   bool any_key_down = false;
 
+  uint8_t free_index = 0;
+
   for (uint8_t i = 2; i < 8; i++) {
     uint8_t key = buf[i];
     if (semicolon_down_last) {
       switch(key) {
-        case CODE_J: key = KEY_LEFT; break;
-        case CODE_K: key = KEY_DOWN; break;
-        case CODE_L: key = KEY_RIGHT; break;
-        case CODE_I: key = KEY_UP; break;
-        case CODE_U: key = KEY_HOME; break;
-        case CODE_O: key = KEY_END; break;
-        case CODE_H: key = KEY_PAGE_UP; break;
-        case CODE_N: key = KEY_PAGE_DOWN; break;
+        case CODE_J: key = KEY_LEFT; semicolon_used = true; break;
+        case CODE_K: key = KEY_DOWN; semicolon_used = true; break;
+        case CODE_L: key = KEY_RIGHT; semicolon_used = true; break;
+        case CODE_I: key = KEY_UP; semicolon_used = true; break;
+        case CODE_U: key = KEY_HOME; semicolon_used = true; break;
+        case CODE_O: key = KEY_END; semicolon_used = true; break;
+        case CODE_H: key = KEY_PAGE_UP; semicolon_used = true; break;
+        case CODE_N: key = KEY_PAGE_DOWN; semicolon_used = true; break;
       }
     }
 
@@ -98,36 +102,43 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
 #endif
     }
 
+    if (key == 0) {
+      free_index = i;
+    }
+
     SetKey(i, key);
   }
 
+  bool clear_momentary_key = false;
+
   if (!mods && mods_last && !anything_pressed) {
     if (mods_last & MODIFIERKEY_LEFT_SHIFT) {
-      Keyboard.set_key1(KEY_BACKSPACE);
-      Keyboard.send_now();
+      SetKey(free_index, KEY_BACKSPACE);
+      clear_momentary_key = true;
+      anything_pressed = true;
     }
 
     if (mods_last & MODIFIERKEY_RIGHT_SHIFT) {
-      Keyboard.set_key1(KEY_DELETE);
-      Keyboard.send_now();
+      SetKey(free_index, KEY_DELETE);
+      clear_momentary_key = true;
+      anything_pressed = true;
     }
-
-    // clear the delete
-    Keyboard.set_key1(0);
   }
 
-  if (!semicolon_down && semicolon_down_last && !anything_pressed) {
-    // send and then immediately clear the semicolon
-    Keyboard.set_key1(KEY_SEMICOLON);
-    Keyboard.send_now();
-    Keyboard.set_key1(0);
+  if (!semicolon_down && semicolon_down_last && !semicolon_used) {
+    SetKey(free_index, KEY_SEMICOLON);
+    clear_momentary_key = true;
+    anything_pressed = true;
+  }
+
+  if (!semicolon_down) {
+    semicolon_used = false;
   }
 
   if (!capslock_down && capslock_down_last && !anything_pressed) {
-    // send and then immediately clear the escape
-    Keyboard.set_key1(KEY_ESC);
-    Keyboard.send_now();
-    Keyboard.set_key1(0);
+    SetKey(free_index, KEY_ESC);
+    clear_momentary_key = true;
+    anything_pressed = true;
   }
 
   if (!any_key_down && !mods && !semicolon_down && !capslock_down) {
@@ -145,6 +156,11 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
   }
 
   Keyboard.send_now();
+
+  if (clear_momentary_key) {
+    SetKey(free_index, 0);
+    Keyboard.send_now();
+  }
 }
 
 void KbdRptParser::SetKey(uint8_t index, uint8_t key)
