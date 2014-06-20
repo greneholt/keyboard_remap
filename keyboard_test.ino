@@ -14,6 +14,8 @@
 #define CODE_UP 0x52
 #define CODE_DOWN 0x51
 
+bool anything_pressed;
+
 class MouseRptParser : public HIDReportParser {
 public:
   virtual void Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf);
@@ -24,6 +26,11 @@ void MouseRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
   MOUSEINFO *pmi = (MOUSEINFO*)buf;
 
   Mouse.set_buttons(pmi->bmLeftButton, pmi->bmMiddleButton, pmi->bmRightButton);
+
+  if (pmi->bmLeftButton || pmi->bmMiddleButton || pmi->bmRightButton) {
+    anything_pressed = true;
+  }
+
   Mouse.move(pmi->dX, pmi->dY);
 }
 
@@ -34,7 +41,6 @@ public:
     semicolon_down_last = false;
     capslock_down = false;
     capslock_down_last = false;
-    anything_pressed = false;
     semicolon_used = false;
     mods_last = 0;
   };
@@ -50,7 +56,6 @@ private:
   bool semicolon_down_last;
   bool capslock_down;
   bool capslock_down_last;
-  bool anything_pressed;
   bool semicolon_used;
   uint8_t mods_last;
 };
@@ -236,6 +241,8 @@ void setup()
 #endif
 
   delay(200);
+
+  anything_pressed = false;
 
   HidComposite.SetReportParser(0, (HIDReportParser*)&KbdPrs);
   HidComposite.SetReportParser(1,(HIDReportParser*)&MousePrs);
