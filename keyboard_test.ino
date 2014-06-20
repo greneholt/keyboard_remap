@@ -149,11 +149,7 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
   semicolon_down_last = semicolon_down;
   capslock_down_last = capslock_down;
 
-  if (anything_pressed) {
-    Keyboard.set_modifier(mods);
-  } else {
-    Keyboard.set_modifier(0);
-  }
+  Keyboard.set_modifier(mods);
 
   Keyboard.send_now();
 
