@@ -245,9 +245,9 @@ void setup()
   anything_pressed = false;
 
   HidComposite.SetReportParser(0, (HIDReportParser*)&KbdPrs);
-  HidComposite.SetReportParser(1,(HIDReportParser*)&MousePrs);
+  HidComposite.SetReportParser(1, (HIDReportParser*)&MousePrs);
   HidKeyboard.SetReportParser(0, (HIDReportParser*)&KbdPrs);
-  HidMouse.SetReportParser(0,(HIDReportParser*)&MousePrs);
+  HidMouse.SetReportParser(0, (HIDReportParser*)&MousePrs);
 }
 
 void loop()
