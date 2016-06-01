@@ -1,3 +1,7 @@
+// To use this sketch, you must set the board to "Teensy 2.0", the CPU speed to 8 MHz, and the USB
+// type to "Serial + Keyboard + Mouse + Joystick". You also need the Teensyduino and USB Host Shield
+// 2.0 libraries installed.
+
 #include <hidboot.h>
 #include <usbhub.h>
 
@@ -13,6 +17,7 @@
 #define CODE_SEMICOLON 0x33
 #define CODE_UP 0x52
 #define CODE_DOWN 0x51
+#define CODE_SPACE 0x2C
 
 bool anything_pressed;
 
@@ -92,6 +97,10 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
       }
     }
 
+    if (key == CODE_SPACE && (mods & MODIFIERKEY_LEFT_SHIFT || mods & MODIFIERKEY_RIGHT_SHIFT)) {
+      key = KEY_MINUS;
+    }
+
     if (key == CODE_CAPS) {
       key = 0; // don't send caps lock
       mods |= MODIFIERKEY_LEFT_CTRL;
@@ -117,11 +126,11 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
   bool clear_momentary_key = false;
 
   if (!mods && mods_last && !anything_pressed) {
-    if (mods_last & MODIFIERKEY_LEFT_SHIFT) {
-      SetKey(free_index, KEY_BACKSPACE);
-      clear_momentary_key = true;
-      anything_pressed = true;
-    }
+    // if (mods_last & MODIFIERKEY_LEFT_SHIFT) {
+    //   SetKey(free_index, KEY_BACKSPACE);
+    //   clear_momentary_key = true;
+    //   anything_pressed = true;
+    // }
 
     if (mods_last & MODIFIERKEY_RIGHT_SHIFT) {
       SetKey(free_index, KEY_DELETE);
@@ -178,7 +187,7 @@ void KbdRptParser::SetKey(uint8_t index, uint8_t key)
 
 uint8_t KbdRptParser::RemapModifiers(uint8_t in_mods)
 {
-  uint8_t out_mods;
+  uint8_t out_mods = 0;
 
   if (in_mods & MODIFIERKEY_LEFT_CTRL) {
     out_mods |= MODIFIERKEY_LEFT_ALT;
