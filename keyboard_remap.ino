@@ -19,6 +19,9 @@
 #define CODE_DOWN 0x51
 #define CODE_SPACE 0x2C
 
+#define MOUSE_DEAD 2
+#define MOUSE_SUB 1
+
 bool anything_pressed;
 
 class MouseRptParser : public HIDReportParser {
@@ -36,7 +39,31 @@ void MouseRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
     anything_pressed = true;
   }
 
-  Mouse.move(pmi->dX, pmi->dY);
+  signed char dX = pmi->dX;
+  signed char dY = pmi->dY;
+
+  if (dX*dX + dY*dY > MOUSE_DEAD) {
+    if (dX > MOUSE_SUB) {
+      dX -= MOUSE_SUB;
+    } else if (dX < -MOUSE_SUB) {
+      dX += MOUSE_SUB;
+    } else {
+      dX = 0;
+    }
+
+    if (dY > MOUSE_SUB) {
+      dY -= MOUSE_SUB;
+    } else if (dY < -MOUSE_SUB) {
+      dY += MOUSE_SUB;
+    } else {
+      dY = 0;
+    }
+  } else {
+    dX = 0;
+    dY = 0;
+  }
+
+  Mouse.move(dX, dY);
 }
 
 class KbdRptParser : public HIDReportParser {
