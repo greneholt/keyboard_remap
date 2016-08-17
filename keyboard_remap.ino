@@ -124,9 +124,10 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
       }
     }
 
-    if (key == CODE_SPACE && (mods & MODIFIERKEY_LEFT_SHIFT || mods & MODIFIERKEY_RIGHT_SHIFT)) {
-      key = KEY_MINUS;
-    }
+    // Convert shift+space to underscore.
+    // if (key == CODE_SPACE && (mods & MODIFIERKEY_LEFT_SHIFT || mods & MODIFIERKEY_RIGHT_SHIFT)) {
+    //   key = KEY_MINUS;
+    // }
 
     if (key == CODE_CAPS) {
       key = 0; // don't send caps lock
