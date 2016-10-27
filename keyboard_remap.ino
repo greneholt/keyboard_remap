@@ -13,6 +13,7 @@
 #define CODE_O 0x12
 #define CODE_H 0x0B
 #define CODE_N 0x11
+#define CODE_Y 0x1c
 #define CODE_CAPS 0x39
 #define CODE_SEMICOLON 0x33
 #define CODE_UP 0x52
@@ -121,6 +122,15 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
         case CODE_O: key = KEY_END; semicolon_used = true; break;
         case CODE_H: key = KEY_PAGE_UP; semicolon_used = true; break;
         case CODE_N: key = KEY_PAGE_DOWN; semicolon_used = true; break;
+        case CODE_Y:
+          if (mods & MODIFIERKEY_LEFT_SHIFT) {
+            key = KEY_DELETE;
+            mods &= ~MODIFIERKEY_LEFT_SHIFT; // Clear shift while sending delete.
+          } else {
+            key = KEY_BACKSPACE;
+          }
+          semicolon_used = true;
+          break;
       }
     }
 
