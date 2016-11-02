@@ -122,15 +122,8 @@ void KbdRptParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
         case CODE_O: key = KEY_END; semicolon_used = true; break;
         case CODE_H: key = KEY_PAGE_UP; semicolon_used = true; break;
         case CODE_N: key = KEY_PAGE_DOWN; semicolon_used = true; break;
-        case CODE_Y:
-          if (mods & MODIFIERKEY_LEFT_SHIFT) {
-            key = KEY_DELETE;
-            mods &= ~MODIFIERKEY_LEFT_SHIFT; // Clear shift while sending delete.
-          } else {
-            key = KEY_BACKSPACE;
-          }
-          semicolon_used = true;
-          break;
+        case CODE_Y: key = KEY_DELETE; semicolon_used = true; break;
+        case CODE_SPACE: key = KEY_BACKSPACE; semicolon_used = true; break;
       }
     }
 
